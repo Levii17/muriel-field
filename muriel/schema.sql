@@ -1,0 +1,16 @@
+-- OWNERSHIP MODEL
+--   users -> clients -> jobs   user_id stored on clients and jobs
+--   jobs -> circuits -> readings reached only by joining through a job
+--   jobs -> defects              (optionally tied to one circuit of that job)
+-- Composite foreign keys make the database itself refuse cross-user links
+-- (e.g. a job pointing at someone else's client), as a backstop to the
+-- ownership checks in the Flask routes.
+--
+-- Locking: once a job's status is 'reported', the database refuses any insert
+-- update or delete on that job's circuits, readings, and defects, and refuses
+-- any changes to, or deletion of, the job itself. (triggers at  the end of this file).
+-- Client and electrician details are copied onto the job at the
+-- moment it becomes 'reported', so the finished report stays frozen. Flask's job_is_editable(job) enforces
+-- the same rule earlier, so users get a friendly message instead of a database error.
+--
+-- Timestamps are UTC text in 'YYYY-MM-DD HH:MM:SS' format.
