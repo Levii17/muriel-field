@@ -14,3 +14,28 @@
 -- the same rule earlier, so users get a friendly message instead of a database error.
 --
 -- Timestamps are UTC text in 'YYYY-MM-DD HH:MM:SS' format.
+
+PRAGMA foreign_keys = ON;
+
+-- ---------------------------------------------------------------- users
+CREATE TABLE users (
+    id INTEGER PRIMARY KEY,
+    email TEXT NOT NULL UNIQUE COLLATE NOCASE,
+    password_hash TEXT NOT NULL,
+    name TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- -------------------------------------------------------------- clients
+CREATE TABLE clients (
+    id INTEGER PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    name TEXT NOT NULL CHECK (length(trim(name)) > 0),
+    phone TEXT,
+    email TEXT,
+    notes TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    -- Lets jobs reference (client, owner) together.
+    UNIQUE (id, user_id)
+);
+CREATE INDEX idx_clients_user ON clients(user_id, name);
