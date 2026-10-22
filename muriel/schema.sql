@@ -49,7 +49,7 @@ CREATE TABLE jobs (
     status TEXT NOT NULL DEFAULT 'draft' 
         CHECK (status IN ('draft', 'in_progress', 'tested', 'reported')),
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
-    update_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
         -- Snapshot of who the report is for and who signed it off, NULL until the
         -- job becomes 'reported'; the same UPDATE that sets status = 'reported'
         -- must fill them (the CHECK below refuses it otherwise). After that the
@@ -129,7 +129,7 @@ INSERT INTO test_types (code, label, unit, comparison) VALUES
         'min'
     ),
     (
-        'protective_Continuity',
+        'protective_continuity',
         'Protective conductor continuity',
         'ohm',
         'max'
@@ -215,6 +215,7 @@ CREATE TABLE defects (
         CHECK (severity IN ('low', 'medium', 'high')),
     status TEXT NOT NULL DEFAULT 'open'
         CHECK (status IN ('open', 'resolved')),
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
     resolved_at TEXT,
     CHECK (
         (status = 'open' AND resolved_at IS NULL)
@@ -222,7 +223,7 @@ CREATE TABLE defects (
     ),
     -- if a circuit is given it must belong to the same job.
     -- (not enforced when circuit_id is NULL)
-    FOREIGN KEY (circuit_id, job_id) REFERENCES circuits(id, job_id) ON DELETE RESTRICT
+    FOREIGN KEY (circuit_id, job_id) REFERENCES circuits(id, job_id) ON DELETE CASCADE
 );
 CREATE INDEX idx_defects_job ON defects(job_id, status);
 CREATE INDEX idx_defects_circuit ON defects(circuit_id);
@@ -272,7 +273,7 @@ CREATE TRIGGER circuits_lock_delete
 BEFORE DELETE ON circuits
 WHEN EXISTS (SELECT 1 FROM jobs WHERE id = OLD.job_id AND status = 'reported')
 BEGIN
-    SELECT RAISE(ABORT, 'Job is finalized (reported): circuits, readings and defects are locked')
+    SELECT RAISE(ABORT, 'Job is finalized (reported): circuits, readings and defects are locked');
 END;
 
 -- readings (reach their job through the circuit)
@@ -281,7 +282,7 @@ BEFORE INSERT ON readings
 WHEN EXISTS (SELECT 1 FROM circuits c JOIN jobs j ON j.id = c.job_id 
             WHERE c.id = NEW.circuit_id AND j.status = 'reported')
 BEGIN
-    SELECT RAISE(ABORT, 'Job is finalized (reported): circuits, readings and defects are locked')
+    SELECT RAISE(ABORT, 'Job is finalized (reported): circuits, readings and defects are locked');
 END;
 
 -- one exception: limit_id may go from a value to NULL with every other column
@@ -291,7 +292,7 @@ END;
 CREATE TRIGGER readings_lock_update
 BEFORE UPDATE ON readings
 WHEN EXISTS (SELECT 1 FROM circuits c JOIN jobs j ON j.id = c.job_id
-            WHERE c.id IN (OLD.circuits_id, NEW.circuits_id) AND j.status = 'reported')
+            WHERE c.id IN (OLD.circuit_id, NEW.circuit_id) AND j.status = 'reported')
     AND NOT (OLD.limit_id IS NOT NULL AND NEW.limit_id IS NULL
              AND NEW.circuit_id = OLD.circuit_id AND NEW.test_type = OLD.test_type
              AND NEW.value = OLD.value AND NEW.result = OLD.result
