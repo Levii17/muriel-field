@@ -136,3 +136,22 @@ INSERT INTO test_types (code, label, unit, comparison) VALUES
     ('protective_Continuity', 'Protective conductor continuity', 'ohm', 'max'),
     ('rcd_trip_time', 'RCD trip time', 'ms', 'max');
 
+-- ---------------------------------------------------------- test_limits
+-- NO LIMIT VALUES ARE SEEDED HERE ON PURPOSE. Take each value from the
+-- applicable standard, record the exact source, and only then set verified = 1.
+-- protection_type / rating_a may be NULL, meaning "applies to any"
+-- when looking up a limit, prefer the most specific matching row.
+CREATE TABLE test_limits (
+    id INTEGER PRIMARY KEY,
+    test_type TEXT NOT NULL REFERENCES test_types(code) ON DELETE RESTRICT,
+    protection_type TEXT,
+    rating_a INTEGER CHECK (rating_a IS NULL OR rating_a > 0),
+    limit_value REAL NOT NULL CHECK (limit_value >= 0),
+    source TEXT NOT NULL CHECK (length(trim(source)) > 0),
+    verified INTEGER NOT NULL DEFAULT 0 CHECK (verified IN (0, 1)),
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+-- one row per (test, protection_type, rating_a) combination. NULL treated as "any".
+CREATE UNIQUE INDEX uq_test_limits_scope ON test_limits (
+    test_type, COALESCE(protection_type, ''), COALESCE(rating_a, 0)
+);
