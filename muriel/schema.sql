@@ -204,3 +204,25 @@ CREATE TABLE readings (
         )
     );
 CREATE INDEX idx_readings_circuit ON readings(circuit_id, test_type);
+
+-- -------------------------------------------------------------- defects
+CREATE TABLE defects (
+    id INTEGER PRIMARY KEY,
+    job_id INTEGER NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
+    circuit_id INTEGER,
+    description TEXT NOT NULL CHECK (length(trim(description)) > 0),
+    severity TEXT NOT NULL DEFAULT 'medium'
+        CHECK (severity IN ('low', 'medium', 'high')),
+    status TEXT NOT NULL DEFAULT 'open'
+        CHECK (status IN ('open', 'resolved')),
+    resolved_at TEXT,
+    CHECK (
+        (status = 'open' AND resolved_at IS NULL)
+     OR (status = 'resolved' AND resolved_at IS NOT NULL)
+    ),
+    -- if a circuit is given it must belong to the same job.
+    -- (not enforced when circuit_id is NULL)
+    FOREIGN KEY (circuit_id, job_id) REFERENCES circuits(id, job_id) ON DELETE RESTRICT
+);
+CREATE INDEX idx_defects_job ON defects(job_id, status);
+CREATE INDEX idx_defects_circuit ON defects(circuit_id);
