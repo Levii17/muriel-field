@@ -283,3 +283,53 @@ WHEN EXISTS (SELECT 1 FROM circuits c JOIN jobs j ON j.id = c.job_id
 BEGIN
     SELECT RAISE(ABORT, 'Job is finalized (reported): circuits, readings and defects are locked')
 END;
+
+-- one exception: limit_id may go from a value to NULL with every other column
+-- unchanged. that is exactly what ON DELETE SET NULL on test_limits does, and
+-- without the exception deleting a limit used by any reported job would abort.
+-- the snaphot columns are untouched, so the reading itself doesn't change.
+CREATE TRIGGER readings_lock_update
+BEFORE UPDATE ON readings
+WHEN EXISTS (SELECT 1 FROM circuits c JOIN jobs j ON j.id = c.job_id
+            WHERE c.id IN (OLD.circuits_id, NEW.circuits_id) AND j.status = 'reported')
+    AND NOT (OLD.limit_id IS NOT NULL AND NEW.limit_id IS NULL
+             AND NEW.circuit_id = OLD.circuit_id AND NEW.test_type = OLD.test_type
+             AND NEW.value = OLD.value AND NEW.result = OLD.result
+             AND NEW.limit_comparison IS OLD.limit_comparison
+             AND NEW.limit_value IS OLD.limit_value
+             AND NEW.limit_verified IS OLD.limit_verified
+             AND NEW.notes IS OLD.notes AND NEW.recorded_at = OLD.recorded_at
+            )
+BEGIN
+    SELECT RAISE(ABORT, 'Job is finalized (reported): circuits, readings and defects are locked');
+END;
+
+CREATE TRIGGER readings_lock_delete
+BEFORE DELETE ON readings
+WHEN EXISTS (SELECT 1 FROM circuits c JOIN jobs j ON j.id = c.job_id
+             WHERE c.id = OLD.circuit_id AND j.status = 'reported')
+BEGIN
+    SELECT RAISE(ABORT, 'Job is finalized (reported): circuits, readings and defects are locked');
+END;
+
+-- defects (belong directly to a job)
+CREATE TRIGGER defects_lock_insert
+BEFORE INSERT ON defects
+WHEN EXISTS (SELECT 1 FROM jobs WHERE id = NEW.job_id AND status = 'reported')
+BEGIN
+    SELECT RAISE(ABORT, 'Job is finalized (reported): circuits, readings and defects are locked');
+END;
+
+CREATE TRIGGER defects_lock_update
+BEFORE UPDATE ON defects
+WHEN EXISTS (SELECT 1 FROM jobs WHERE id IN (OLD.job_id, NEW.job_id) AND status = 'reported')
+BEGIN
+    SELECT RAISE(ABORT, 'Job is finalized (reported): circuits, readings and defects are locked');
+END;
+
+CREATE TRIGGER defects_lock_delete
+BEFORE DELETE ON defects
+WHEN EXISTS (SELECT 1 FROM jobs WHERE id = OLD.job_id AND status = 'reported')
+BEGIN
+    SELECT RAISE(ABORT, 'Job is finalized (reported): circuits, readings and defects are locked');
+END;
