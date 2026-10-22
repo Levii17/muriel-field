@@ -29,7 +29,7 @@ CREATE TABLE users (
 CREATE TABLE clients (
     id INTEGER PRIMARY KEY,
     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    name TEXT NOT NULL CHECK (length (trim(name)) > 0),
+    name TEXT NOT NULL CHECK (length(trim(name)) > 0),
     phone TEXT,
     email TEXT,
     notes TEXT,
@@ -37,7 +37,6 @@ CREATE TABLE clients (
     -- Lets jobs reference (client, owner) together.
     UNIQUE (id, user_id)
 );
-
 CREATE INDEX idx_clients_user ON clients (user_id, name);
 
 -- ----------------------------------------------------------------- jobs
@@ -47,60 +46,47 @@ CREATE TABLE jobs (
     client_id INTEGER NOT NULL,
     title TEXT NOT NULL CHECK (length (trim(title)) > 0),
     site_address TEXT NOT NULL CHECK (length (trim(site_address)) > 0),
-    status TEXT NOT NULL DEFAULT 'draft' CHECK (
-        status IN ('draft', 'in_progress', 'tested', 'reported')
-    ),
+    status TEXT NOT NULL DEFAULT 'draft' 
+        CHECK (status IN ('draft', 'in_progress', 'tested', 'reported')),
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     update_at TEXT NOT NULL DEFAULT (datetime('now')),
-    -- Snapshot of who the report is for and who signed it off, NULL until the
-    -- job becomes 'reported'; the same UPDATE that sets status = 'reported'
-    -- must fill them (the CHECK below refuses it otherwise). After that the
-    -- lock trigger stops them changing. Reports read
-    -- COALESCE(job.client_name, client.name) etc.
+        -- Snapshot of who the report is for and who signed it off, NULL until the
+        -- job becomes 'reported'; the same UPDATE that sets status = 'reported'
+        -- must fill them (the CHECK below refuses it otherwise). After that the
+        -- lock trigger stops them changing. Reports read
+        -- COALESCE(job.client_name, client.name) etc.
     client_name TEXT,
     client_phone TEXT,
     client_email TEXT,
     reported_by_name TEXT,
-    CHECK (
-        status <> 'reported'
-        OR (
-            client_name IS NOT NULL
-            AND reported_by_name IS NOT NULL
-        )
-    ),
-    -- The client must belong to the same user as the job.
-    -- RESTRICT: you can't delete a client who still has jobs.
+    CHECK (status <> 'reported'
+        OR (client_name IS NOT NULL AND reported_by_name IS NOT NULL)),
+        -- The client must belong to the same user as the job.
+        -- RESTRICT: you can't delete a client who still has jobs.
     FOREIGN KEY (client_id, user_id) REFERENCES clients (id, user_id) ON DELETE RESTRICT
 );
-
 CREATE INDEX idx_jobs_user_status ON jobs (user_id, status);
-
 CREATE INDEX idx_jobs_client ON jobs (client_id);
 
 -- Status only moves forward, one stage at a time:
 --  draft -> in_progress -> tested -> reported. Same-value updates are allowed.
-CREATE TRIGGER jobs_status_forward_only BEFORE
-UPDATE OF status ON jobs WHEN NEW.status <> OLD.status
-AND (
-    CASE NEW.status
+CREATE TRIGGER jobs_status_forward_only 
+BEFORE UPDATE OF status ON jobs 
+WHEN NEW.status <> OLD.status
+ AND (CASE NEW.status
         WHEN 'draft' THEN 1
         WHEN 'in_progress' THEN 2
         WHEN 'tested' THEN 3
         WHEN 'reported' THEN 4
-    END
-) <> (
-    CASE OLD.status
+    END) 
+ <> (CASE OLD.status
         WHEN 'draft' THEN 1
         WHEN 'in_progress' THEN 2
         WHEN 'tested' THEN 3
         WHEN 'reported' THEN 4
-    END
-) + 1 BEGIN
-SELECT
-    RAISE (
-        ABORT,
-        'Job status can only move forward one stage at a time'
-    );
+    END) + 1 
+ BEGIN
+    SELECT RAISE (ABORT, 'Job status can only move forward one stage at a time');
 END;
 
 -- ------------------------------------------------------------- circuits
@@ -110,11 +96,10 @@ CREATE TABLE circuits (
     name TEXT NOT NULL CHECK (length (trim(name)) > 0),
     description TEXT,
     protection_type TEXT, -- free text, e.g. 'MCB B', 'RCBO C', 'fuse'
-    protection_rating_a INTEGER CHECK (protection_rating_a IS NULL
-        OR protection_rating_a > 0),
+    protection_rating_a INTEGER CHECK (protection_rating_a IS NULL OR protection_rating_a > 0),
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     UNIQUE (job_id, name), -- also servers as the index on job_id
-    UNIQUE (id, job_id)  -- lets defects reference (circuit, job) together
+    UNIQUE (id, job_id) -- lets defects reference (circuit, job) together
 );
 
 -- ----------------------------------------------------------- test_types
@@ -131,10 +116,31 @@ CREATE TABLE test_types (
 );
 
 INSERT INTO test_types (code, label, unit, comparison) VALUES
-    ('earth_loop_impedance', 'Earth fault loop impedance (Zs)', 'ohm', 'max'),
-    ('insulation_resistance', 'Insulation resistance', 'Mohm', 'min'),
-    ('protective_Continuity', 'Protective conductor continuity', 'ohm', 'max'),
-    ('rcd_trip_time', 'RCD trip time', 'ms', 'max');
+    (
+        'earth_loop_impedance',
+        'Earth fault loop impedance (Zs)',
+        'ohm',
+        'max'
+    ),
+    (
+        'insulation_resistance',
+        'Insulation resistance',
+        'Mohm',
+        'min'
+    ),
+    (
+        'protective_Continuity',
+        'Protective conductor continuity',
+        'ohm',
+        'max'
+    ),
+    (
+        'rcd_trip_time', 
+        'RCD trip time', 
+        'ms', 
+        'max'
+    )
+;
 
 -- ---------------------------------------------------------- test_limits
 -- NO LIMIT VALUES ARE SEEDED HERE ON PURPOSE. Take each value from the
@@ -151,7 +157,50 @@ CREATE TABLE test_limits (
     verified INTEGER NOT NULL DEFAULT 0 CHECK (verified IN (0, 1)),
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
--- one row per (test, protection_type, rating_a) combination. NULL treated as "any".
+
+-- one row per (test, protection_type, rating_a) combination. NULLs treated as "any".
 CREATE UNIQUE INDEX uq_test_limits_scope ON test_limits (
-    test_type, COALESCE(protection_type, ''), COALESCE(rating_a, 0)
+    test_type,
+    COALESCE(protection_type, ''),
+    COALESCE(rating_a, 0)
 );
+
+-- ------------------------------------------------------------- readings
+-- the limit applied is copied onto the reading (snapshot) so editing the
+-- limits table later never silently changes an old report.
+CREATE TABLE readings (
+    id INTEGER PRIMARY KEY,
+    circuit_id INTEGER NOT NULL REFERENCES circuits(id) ON DELETE CASCADE,
+    test_type TEXT NOT NULL REFERENCES test_types(code) ON DELETE RESTRICT,
+    value REAL NOT NULL,
+    limit_id INTEGER REFERENCES test_limits(id) ON DELETE SET NULL,
+    limit_comparison TEXT CHECK (limit_comparison IN ('max', 'min')),
+    limit_value REAL,
+    limit_verified INTEGER CHECK (limit_verified IN (0, 1)),
+    result TEXT NOT NULL 
+        CHECK (result IN ('pass', 'flag', 'unchecked')),
+        -- "flag" rather than "fail": the app doesn't certify.
+    notes TEXT,
+    recorded_at TEXT NOT NULL DEFAULT (datetime('now')),
+        -- a checked reading must carry the lmit it was checked against, including
+        -- whether that limit was verified (so the report's "unverified limit" note
+        -- can never be skipped by a NULL). an unchecked reading carries none of it.
+    CHECK (
+        (result = 'unchecked'
+            AND limit_value IS NULL AND limit_comparison IS NULL
+            AND limit_verified IS NULL)
+     OR (result IN ('pass', 'flag')
+            AND limit_value IS NOT NULL AND limit_comparison IS NOT NULL
+            AND limit_verified IS NOT NULL)
+        ),
+        -- the stored result must agree with the stored value and limit snapshot,
+        -- so a bug in the FLASK calculation can't reach a report.
+        -- a reading exactly on the limit passes.
+    CHECK (result = 'unchecked'
+     OR (limit_comparison = 'max'
+         AND result = CASE WHEN value <= limit_value THEN 'pass' ELSE 'flag' END)
+     OR (limit_comparison = 'min'
+         AND result = CASE WHEN value >= limit_value THEN 'pass' ELSE 'flag' END)
+        )
+    );
+CREATE INDEX idx_readings_circuit ON readings(circuit_id, test_type);
