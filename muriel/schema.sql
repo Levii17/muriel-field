@@ -226,3 +226,60 @@ CREATE TABLE defects (
 );
 CREATE INDEX idx_defects_job ON defects(job_id, status);
 CREATE INDEX idx_defects_circuit ON defects(circuit_id);
+
+-- ---------------------------------------------------------- lock triggers
+-- a job is locked when its status is 'reported'. every write to its circuits
+-- readings or defects is refused, including resolving or reopening a defect.
+-- UPDATE triggers checks both OLD and NEW so a row can't be moved into or out
+-- of a locked job.
+
+-- the job itself: without this, DELETE FROM jobs could cascade and wipe a
+-- finalized job's circuits, readings, and defects past the triggers below
+-- SQLite removes the parent row first, so the child triggers see no locked job.
+CREATE TRIGGER jobs_lock_delete
+BEFORE DELETE ON jobs
+WHEN OLD.status = 'reported'
+BEGIN
+    SELECT RAISE(ABORT, 'Job is finalized (reported) and cannot be deleted');
+END;
+
+-- the job's own fields (title, site, client, snapshot columns). it only fires
+-- when the OLD status is 'reported', so the update that moves a job from
+-- 'tested' to 'reported' (and fills the snapshot) still passes.
+CREATE TRIGGER jobs_lock_update
+BEFORE UPDATE ON jobs
+WHEN OLD.status = 'reported'
+BEGIN
+    SELECT RAISE(ABORT, 'Job is finalized (reported) and cannot be changed');
+END;
+
+-- circuits (belong directly to a job)
+CREATE TRIGGER circuits_lock_insert
+BEFORE INSERT ON circuits
+WHEN EXISTS (SELECT 1 FROM jobs WHERE id = NEW.job_id AND status = 'reported')
+BEGIN
+    SELECT RAISE(ABORT, 'Job is finalized (reported): circuits, readings and defects are locked');
+END;    
+
+CREATE TRIGGER circuits_lock_update
+BEFORE UPDATE ON circuits
+WHEN EXISTS (SELECT 1 FROM jobs WHERE id IN (OLD.job_id, NEW.job_id) AND status = 'reported')
+BEGIN
+    SELECT RAISE(ABORT, 'Job is finalized (reported): circuits, readings and defects are locked');
+END;
+
+CREATE TRIGGER circuits_lock_delete
+BEFORE DELETE ON circuits
+WHEN EXISTS (SELECT 1 FROM jobs WHERE id = OLD.job_id AND status = 'reported')
+BEGIN
+    SELECT RAISE(ABORT, 'Job is finalized (reported): circuits, readings and defects are locked')
+END;
+
+-- readings (reach their job through the circuit)
+CREATE TRIGGER readings_lock_insert
+BEFORE INSERT ON readings
+WHEN EXISTS (SELECT 1 FROM circuits c JOIN jobs j ON j.id = c.job_id 
+            WHERE c.id = NEW.circuit_id AND j.status = 'reported')
+BEGIN
+    SELECT RAISE(ABORT, 'Job is finalized (reported): circuits, readings and defects are locked')
+END;
