@@ -14,7 +14,6 @@
 -- the same rule earlier, so users get a friendly message instead of a database error.
 --
 -- Timestamps are UTC text in 'YYYY-MM-DD HH:MM:SS' format.
-
 PRAGMA foreign_keys = ON;
 
 -- ---------------------------------------------------------------- users
@@ -30,7 +29,7 @@ CREATE TABLE users (
 CREATE TABLE clients (
     id INTEGER PRIMARY KEY,
     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    name TEXT NOT NULL CHECK (length(trim(name)) > 0),
+    name TEXT NOT NULL CHECK (length (trim(name)) > 0),
     phone TEXT,
     email TEXT,
     notes TEXT,
@@ -38,16 +37,19 @@ CREATE TABLE clients (
     -- Lets jobs reference (client, owner) together.
     UNIQUE (id, user_id)
 );
-CREATE INDEX idx_clients_user ON clients(user_id, name);
+
+CREATE INDEX idx_clients_user ON clients (user_id, name);
 
 -- ----------------------------------------------------------------- jobs
 CREATE TABLE jobs (
     id INTEGER PRIMARY KEY,
     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     client_id INTEGER NOT NULL,
-    title TEXT NOT NULL CHECK (length(trim(title)) > 0),
-    site_address TEXT NOT NULL CHECK (length(trim(site_address)) > 0),
-    status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'in_progress', 'tested', 'reported')),
+    title TEXT NOT NULL CHECK (length (trim(title)) > 0),
+    site_address TEXT NOT NULL CHECK (length (trim(site_address)) > 0),
+    status TEXT NOT NULL DEFAULT 'draft' CHECK (
+        status IN ('draft', 'in_progress', 'tested', 'reported')
+    ),
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     update_at TEXT NOT NULL DEFAULT (datetime('now')),
     -- Snapshot of who the report is for and who signed it off, NULL until the
@@ -59,31 +61,78 @@ CREATE TABLE jobs (
     client_phone TEXT,
     client_email TEXT,
     reported_by_name TEXT,
-    CHECK (status <> 'reported' OR (client_name IS NOT NULL AND reported_by_name IS NOT NULL)),
+    CHECK (
+        status <> 'reported'
+        OR (
+            client_name IS NOT NULL
+            AND reported_by_name IS NOT NULL
+        )
+    ),
     -- The client must belong to the same user as the job.
     -- RESTRICT: you can't delete a client who still has jobs.
-    FOREIGN KEY (client_id, user_id) REFERENCES clients(id, user_id) ON DELETE RESTRICT
+    FOREIGN KEY (client_id, user_id) REFERENCES clients (id, user_id) ON DELETE RESTRICT
 );
-CREATE INDEX idx_jobs_user_status ON jobs(user_id, status);
-CREATE INDEX idx_jobs_client ON jobs(client_id);
+
+CREATE INDEX idx_jobs_user_status ON jobs (user_id, status);
+
+CREATE INDEX idx_jobs_client ON jobs (client_id);
 
 -- Status only moves forward, one stage at a time:
 --  draft -> in_progress -> tested -> reported. Same-value updates are allowed.
-CREATE TRIGGER jobs_status_forward_only 
-BEFORE UPDATE OF status ON jobs
-WHEN NEW.status <> OLD.status
-AND (CASE NEW.status
+CREATE TRIGGER jobs_status_forward_only BEFORE
+UPDATE OF status ON jobs WHEN NEW.status <> OLD.status
+AND (
+    CASE NEW.status
         WHEN 'draft' THEN 1
         WHEN 'in_progress' THEN 2
         WHEN 'tested' THEN 3
         WHEN 'reported' THEN 4
-        END)
- <> (CASE OLD.status
+    END
+) <> (
+    CASE OLD.status
         WHEN 'draft' THEN 1
         WHEN 'in_progress' THEN 2
         WHEN 'tested' THEN 3
         WHEN 'reported' THEN 4
-    END) +  1
-BEGIN
-    SELECT RAISE(ABORT, 'Job status can only move forward one stage at a time');
+    END
+) + 1 BEGIN
+SELECT
+    RAISE (
+        ABORT,
+        'Job status can only move forward one stage at a time'
+    );
 END;
+
+-- ------------------------------------------------------------- circuits
+CREATE TABLE circuits (
+    id INTEGER PRIMARY KEY,
+    job_id INTEGER NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
+    name TEXT NOT NULL CHECK (length (trim(name)) > 0),
+    description TEXT,
+    protection_type TEXT, -- free text, e.g. 'MCB B', 'RCBO C', 'fuse'
+    protection_rating_a INTEGER CHECK (protection_rating_a IS NULL
+        OR protection_rating_a > 0),
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE (job_id, name), -- also servers as the index on job_id
+    UNIQUE (id, job_id)  -- lets defects reference (circuit, job) together
+);
+
+-- ----------------------------------------------------------- test_types
+-- Small lookup of what can be measured, and which direction is acceptable.
+-- Treated as SEED DATA: the app never edits it. Readings snapshot the limit and
+-- comparison but not the unit or label, so changing a unit here would change
+-- the meaning of old readings. Add new test types; don't alter exisiting ones.
+-- 'max' = reading must be <= limit   'min' = reading must be >= limit
+CREATE TABLE test_types (
+    code TEXT PRIMARY KEY,
+    label TEXT NOT NULL,
+    unit TEXT NOT NULL,
+    comparison TEXT NOT NULL CHECK (comparison IN ('max', 'min'))
+);
+
+INSERT INTO test_types (code, label, unit, comparison) VALUES
+    ('earth_loop_impedance', 'Earth fault loop impedance (Zs)', 'ohm', 'max'),
+    ('insulation_resistance', 'Insulation resistance', 'Mohm', 'min'),
+    ('protective_Continuity', 'Protective conductor continuity', 'ohm', 'max'),
+    ('rcd_trip_time', 'RCD trip time', 'ms', 'max');
+
