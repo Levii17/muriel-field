@@ -33,3 +33,12 @@ decisions made in review are logged under **decision log**; anything still undec
 * **timezones:** timestamps are stored in UTC. south africa doesn't observe daylight saving time, so a fixed-offset jinja filter (UTC+2) is enough to show local time on printed reportes.
 * **ownership checks in routes:** one helper (e.g. `get_job_or_404(jon_id)`) that checks the job belongs to the logged in user, used by every route that touches a job or anything under it.
 * **sql:** parameterised queries only.
+
+## application rules
+* **audit trail and snapshot:** `limit_id` tracks which standard was used. the snapshot column record the actual limit at that moment. this lets `test_limits` rows be edited or deleted when standards change without altering older reports.
+* **typo corrections:** while a job is active, a reading can be deleted and re-entered to fix an on-site typing mistake.
+* **locking:** once a job reaches `reported`, all edits to its circuits, readings and defects are locked,, mimicking the handover of a signed paper report. this includes resolving and reopening defects.
+* **pass/flag authority:**
+* **status progression:**
+* **defect reopening:**
+* **client ownership on job creation:**
