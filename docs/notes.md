@@ -26,3 +26,10 @@ decisions made in review are logged under **decision log**; anything still undec
 * **deletes:** deleting an active job cascades to its circuits, readings and defects. deleting a client who still has jobs is blocked (`RESTRICTED`). a job whose status is `reported` can't be deleted at all.
 * **database-level lock:** once a job's status is `reported`, triggers refuse any insert, update or delete on that job's circuits, readings and defects, including resolving or reopening a defect. update triggers check both the old and new row, so a row can't be moved into or out of a locked job. two triggers cover the job row itself: `jobs_locked_delete` blcoks deleting it (otherwise `DELETE FROM jobs` would cascade past the other triggers), and `jobs_lock_update` blocks any update to it, so title site address, client and the snaphsot columns freeze too. `jobs_lock_update` only fires when the old status is `reported` so the update that moves a job from `tested` to `reported` still passes. `readings_lock_update` has one exception: `limit_id` may change from a value to NULL when every other column is unchanged. that is what `ON DELETE SET NULL`does when a limit is delted, so a limit is used by a reported job can still be deleeted and the reading keeps its snapshot. the app checks the same rule first, so users see a friendly message rather than a database error.
 * **timestamp:** UTC text, `YYYY-MM-DD HH:MM:SS`. the schema uses `datatime('now')`, which gives the same values and format as `CURRENT_TIMESTAMP`.
+
+## implementation details
+
+* **foreign keys:** run `PRAGMA foreign_keys = ON` on every database connection. sqlite ingores foreign keys otherwise, and the setting is per-connection.
+* **timezones:** timestamps are stored in UTC. south africa doesn't observe daylight saving time, so a fixed-offset jinja filter (UTC+2) is enough to show local time on printed reportes.
+* **ownership checks in routes:** one helper (e.g. `get_job_or_404(jon_id)`) that checks the job belongs to the logged in user, used by every route that touches a job or anything under it.
+* **sql:** parameterised queries only.
