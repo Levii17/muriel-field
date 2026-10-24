@@ -38,7 +38,9 @@ decisions made in review are logged under **decision log**; anything still undec
 * **audit trail and snapshot:** `limit_id` tracks which standard was used. the snapshot column record the actual limit at that moment. this lets `test_limits` rows be edited or deleted when standards change without altering older reports.
 * **typo corrections:** while a job is active, a reading can be deleted and re-entered to fix an on-site typing mistake.
 * **locking:** once a job reaches `reported`, all edits to its circuits, readings and defects are locked,, mimicking the handover of a signed paper report. this includes resolving and reopening defects.
-* **pass/flag authority:**
-* **status progression:**
-* **defect reopening:**
-* **client ownership on job creation:**
+* **pass/flag authority:** flask calculates the result of the backend at save time. javascript checks in the browser are only live previews. both should call the same comparison logic (the JSON endpoint behind the live check uses the python function).
+* **status progression:** the backend reads the job's current status from the database and sets the next stage itself. the route ignores any status sent by the browser.
+* **centralized edit guard:** one helper, `job_is_editable(job)`, must be called by every route that adds, edits or deletes circuits, readings or defects, by the resolve and reopen defect routes, and by any route that edits a job's own fields (title, site address, client). the database triggers are the backstop if a route forgets.
+* **advance route and the snapshot:** when the status moves from `tested` to `reported`, the same `UPDATE` sets `status` , `update_at` and copies the client's current name, phone and email plus the user's name into the snapshot columns. reports and the job page show the snapshot once the job is `reported`, and the live rows before that. the scaffold does this with `CASE WHEN job.status = 'reported' THEN job.client_phone ELSE client.phone END` rather than `COALESCE(snapshot, live)`: a client with no phone when the job was finalized has a NULL snapshot phone, and `COALESCE` would then pick up number added later, so the report wouldn't be frozen. name and `reported_by_name can never be NULL once reported, so for them both forms behave the same.
+* **defect reopening:** reopening must explicitly set `resolved_at` to `NULL`, or the CHECK constraint will reject it.
+* **client ownership on job creation:** the job creation route must verify the selected `client_id` belongs to `session["user_id"]` before inserting. the composite foreign key above is a second line of defence.
