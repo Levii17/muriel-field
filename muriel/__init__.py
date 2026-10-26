@@ -6,8 +6,9 @@ import os
 import secrets
 import sqlite3
 from datetime import datetime, timedelta
-
 from flask import Flask, render_template
+
+from . import db, security
 
 # SA has no daylight saving time, so a fixed +02:00 offset is enough
 # to turn the stored UTC timestamps into local time for display and printing.
@@ -30,3 +31,6 @@ def create_app(test_config=None):
     elif not secret:
         app.logger.warning("SECRET_KEY is not set: using a random key, so logins reset on restart.")
     os.makedirs(app.instance_path, exist_ok=True)
+
+    db.init_app(app)
+    security.init_app(app)
