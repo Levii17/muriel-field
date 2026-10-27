@@ -33,7 +33,7 @@ def add(job_id):
         if cid is None:
             flash("Choose a circuit from the list.", "error")
             return _back(job_id)
-        circuit_id = get_circuit_or_404(job, cid)["id"] # must be a circuit of this job
+        circuit_id = get_circuit_or_404(job, cid)["id"] # must be a circuit of this job.
     db = get_db()
     db.execute("INSERT INTO defects (job_id, circuit_id, description, severity) VALUES (?, ?, ?, ?)", (job_id, circuit_id, description, severity))
     db.commit()
@@ -55,3 +55,18 @@ def resolve(job_id, defect_id):
     flash("Defect marked resolved.", "ok")
     return _back(job_id)
 
+@bp.post("/jobs/<int:job_id>/defects/<int:defect_id>/reopen")
+@login_required
+def reopen(job_id, defect_id):
+    job = get_job_or_404(job_id)
+    locked = refuse_if_locked(job)
+    if locked:
+        return locked
+    get_defect_or_404(job, defect_id)
+    db = get_db()
+    # resolved_at must be cleared: the schema's CHECK refuses 'open' with a timestamp.
+    db.execute("UPDATE defects SET status = 'open', resolved_at = NULL "
+               "WHERE id = ? AND job_id = ?", (defect_id, job_id))
+    db.commit()
+    flash("Defect reopened.", "ok")
+    return _back(job_id)
