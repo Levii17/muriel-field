@@ -1,11 +1,11 @@
 """ defects: add, resolve, reopen, delete"""
-from flask import Blueprint, flash, redirect, url_for
+from flask import (Blueprint, flash, redirect, url_for)
 
 from .auth import login_required
 from .constants import SEVERITIES
 from .db import get_db
 from .forms import field, int_field
-from .guards import (get_circuit_or_404, get_defect_or_404, get_job_or_4o4, refuse_if_locked)
+from .guards import (get_circuit_or_404, get_defect_or_404, get_job_or_404, refuse_if_locked)
 
 bp = Blueprint("defects", __name__)
 
@@ -15,7 +15,7 @@ def _back(job_id):
 @bp.post("/jobs/<int:job_id>/defects")
 @login_required
 def add(job_id):
-    job = get_job_or_4o4(job_id)
+    job = get_job_or_404(job_id)
     locked = refuse_if_locked(job)
     if locked:
         return locked
@@ -40,5 +40,18 @@ def add(job_id):
     flash("Defect logged.", "ok")
     return _back(job_id)
 
-
+@bp.post("/jobs/<int:job_id>/defects/<int:defect_id>/resolve")
+@login_required
+def resolve(job_id, defect_id):
+    job = get_job_or_404(job_id)
+    locked = refuse_if_locked(job)
+    if locked:
+        return locked
+    get_defect_or_404(job, defect_id)
+    db = get_db()
+    db.execute("UPDATE defects SET status = 'resolved', resolved_at = datetime('now') "
+               "WHERE id = ? AND job_id = ?", (defect_id, job_id))
+    db.commit()
+    flash("Defect marked resolved.", "ok")
+    return _back(job_id)
 
