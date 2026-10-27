@@ -70,3 +70,17 @@ def reopen(job_id, defect_id):
     db.commit()
     flash("Defect reopened.", "ok")
     return _back(job_id)
+
+@bp.post("/jobs/<int:job_id>/defects/<int:defect_id>/delete")
+@login_required
+def delete(job_id, defect_id):
+    job = get_job_or_404(job_id)
+    locked = refuse_if_locked(job)
+    if locked:
+        return locked
+    get_defect_or_404(job, defect_id)
+    db = get_db()
+    db.execute("DELETE FROM defects WHERE id = ? AND job_id = ?", (defect_id, job_id))
+    db.commit()
+    flash("Defect deleted.", "ok")
+    return _back(job_id)
