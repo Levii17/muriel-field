@@ -57,3 +57,25 @@ def add_circuit(job_id):
             _duplicate_or_raise(exc)
     return _back(job_id, "circuits")
 
+@bp.post("/jobs/<int:job_id>/circuits/<int:circuit_id>/edit")
+@login_required
+def edit_circuit(job_id, circuit_id):
+    job = get_job_or_404(job_id)
+    locked = refuse_if_locked(job)
+    if locked:
+        return locked
+    get_circuit_or_404(job, circuit_id)
+    data = _circuit_form()
+    if data:
+        db = get_db()
+        try:
+            db.execute(
+                "UPDATE circuits SET name = ?, description = ?, protection_type = ?, "
+                "protection_rating_a = ? WHERE id = ? AND job_id = ?",
+                (*data, circuit_id, job_id)
+            )
+            db.commit()
+            flash("Circuit updated. Existing readings keep the limit they were checked against.", "ok")
+        except sqlite3.IntegrityError as exc:
+            _duplicate_or_raise(exc)
+    return _back(job_id, f"circuit-{circuit_id}")
