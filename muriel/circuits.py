@@ -146,3 +146,21 @@ def delete_reading(job_id, reading_id):
     db.commit()
     flash("Reading deleted. Enter it again if it was a typing mistake.", "ok")
     return _back(job_id, f"circuit-{reading['circuit_id']}")
+
+@bp.get("/api/jobs/<int:job_id>/circuits/<int:circuit_id>/check")
+@login_required
+def live_check(job_id, circuit_id):
+    """ preview only. nothing is saved; uses the same function as add_reading. """
+    job = get_job_or_404(job_id)
+    circuit = get_circuit_or_404(job, circuit_id)
+    db = get_db()
+    test_type = get_test_type(db, request.args.get("test_type", ""))
+    if test_type is None:
+        return jsonify(ok=False, error="Choose a test type."), 400
+    try:
+        value = parse_value(request.args.get("value"))
+    except ValueError as exc:
+        return jsonify(ok=False, error=str(exc)), 400
+    check = check_reading(db, circuit, test_type, value)
+    return jsonify(ok=True, result=check["result"], message=describe(check, test_type),
+                   verified=check["limit_verified"])
