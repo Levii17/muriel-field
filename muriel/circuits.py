@@ -79,3 +79,35 @@ def edit_circuit(job_id, circuit_id):
         except sqlite3.IntegrityError as exc:
             _duplicate_or_raise(exc)
     return _back(job_id, f"circuit-{circuit_id}")
+
+@bp.post("/jobs/<int:job_id>/circuits/<int:circuit_id>/readings")
+@login_required
+def add_reading(job_id, circuit_id):
+    job = get_job_or_404(job_id)
+    locked = refuse_if_locked(job)
+    if locked:
+        return locked
+    circuit = get_circuit_or_404(job, circuit_id)
+    db = get_db()
+    test_type = get_test_type(db, field("test_type", 50))
+    if test_type is None:
+        flash("Choose a test type.", "error")
+        return _back(job_id, f"circuit-{circuit_id}")
+    try:
+        value = parse_value(request.form.get("value"))
+    except ValueError as exc:
+        flash(str(exc), "error")
+        return _back(job_id, f"circuit-{circuit_id}")
+
+    # the server decides pass/flag, and stores the limit if used (the snapshot).
+    check = check_reading(db, circuit, test_type, value)
+    db.execute(
+        "INSERT INTO readings (circuit_id, test_type, value, limit_id, limit_comparison, "
+        "limit_value, limit_verified, result, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        (circuit_id, test_type["code"], value, check["limit_id"], check["limit_comparison"], 
+         check["limit_Value"], check["limit_verified"], check["result"], optional("notes", 300))
+    )
+    db.commit()
+    category = "error" if check["result"] == "flag" else "ok"
+    flash(f"Reading saved: {describe(check, test_type)}", category)
+    return _back(job_id, f"circuit-{circuit_id}")
