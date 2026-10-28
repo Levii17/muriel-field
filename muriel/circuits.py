@@ -80,6 +80,23 @@ def edit_circuit(job_id, circuit_id):
             _duplicate_or_raise(exc)
     return _back(job_id, f"circuit-{circuit_id}")
 
+@bp.post("/jobs/<int:job_id>/circuits/<int:circuit_id/delete")
+@login_required
+def delete_circuit(job_id, circuit_id)
+    job = get_job_or_404(job_id)
+    locked = refuse_if_locked(job)
+    if locked:
+        return locked
+    get_circuit_or_404(job, circuit_id)
+    db = get_db()
+    db.execute(
+        "DELETE FROM circuits WHERE id = ? AND job_id = ?",
+        (circuit_id, job_id)
+    )
+    db.commit()
+    flash("Circuit deleted, along with its readings.", "ok")
+    return _back(job_id, "circuits")
+
 @bp.post("/jobs/<int:job_id>/circuits/<int:circuit_id>/readings")
 @login_required
 def add_reading(job_id, circuit_id):
@@ -111,3 +128,21 @@ def add_reading(job_id, circuit_id):
     category = "error" if check["result"] == "flag" else "ok"
     flash(f"Reading saved: {describe(check, test_type)}", category)
     return _back(job_id, f"circuit-{circuit_id}")
+
+@bp.post("/jobs/<int:job_id>/readings/<int:reading_id>/delete")
+@login_required
+def delete_reading(job_id, reading_id):
+    """ typo correction: delete the reading and enter it again. """
+    job = get_job_or_404(job_id)
+    locked = refuse_if_locked(job)
+    if locked:
+        return locked
+    reading = get_reading_or_404(job, reading_id)
+    db = get_db()
+    db.execute(
+        "DELETE FROM readings WHERE id = ?",
+        (reading_id)
+    )
+    db.commit()
+    flash("Reading deleted. Enter it again if it was a typing mistake.", "ok")
+    return _back(job_id, f"circuit-{reading['circuit_id']}")
