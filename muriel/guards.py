@@ -7,7 +7,7 @@ readings and defects are then looked up +through that job+.
 from flask import abort, flash, g, redirect, url_for
 from .db import get_db
 
-def get_job_or_4o4(job_id):
+def get_job_or_404(job_id):
     job = get_db().execute(
         "SELECT * FROM jobs WHERE id = ? AND user_id = ?", (job_id, g.user["id"])
     ).fetchone()
@@ -22,6 +22,14 @@ def get_client_or_404(client_id):
     if client is None:
         abort(404)
     return client
+
+def get_circuit_or_404(job, circuit_id):
+    circuit = get_db().execute(
+        "SELECT * FROM circuits WHERE id = ? AND job_id = ?", (circuit_id, job["id"])
+    ).fetchone()
+    if circuit is None:
+        abort(404)
+    return circuit
 
 def get_reading_or_404(job, reading_id):
     reading = get_db().execute(
@@ -48,7 +56,7 @@ def job_is_editable(job):
     """
     return job["status"] != "reported"
 
-def refuse_if__locked(job):
+def refuse_if_locked(job):
     """ return a redirect (with a message) if the job is locked, else None.
         locked = refuse_if_locked(job)
         if locked:
