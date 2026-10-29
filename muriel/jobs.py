@@ -95,3 +95,47 @@ def index():
         (g.user["id"])
     ).fetchall()
     return render_template("index.html", jobs=jobs, labels=STATUS_LABELS)
+
+@bp.route("/jobs/new", methods=("GET", "POST"))
+@login_required
+def new():
+    db = get_db()
+    clients = db.execute(
+        "SELECT id, name FROM clients WHERE user_id = ? "
+        "ORDER BY name COLLATE NOCASE",
+        (g.user["id"])
+    ).fetchall()
+
+    if request.method == "POST":
+        title, site = field("title", 150), field("site_address", 250)
+        client_id = int_field("client_id")
+        errors = []
+        if not title:
+            errors.append("Job title is required.")
+        if not site:
+            errors.append("Site address is required.")
+        # the selected client must belong to the logged-in user. checked here,
+        # and again by the composite foreign key on jobs.
+        client = None if client_id is None else db.execute(
+            "SELECT id FROM clients WHERE Id = ? AND user_id = ?",
+            (client_id, g.user["id"])
+        ).fetchone()
+
+        if client is None:
+            errors.append("Choose one of your clients.")
+        if not errors:
+            cur = db.execute(
+                "INSERT INTO jobs (user_id, client_id, title, site_address) VALUES (?, ?, ?, ?)",
+                (g.user["id"], client["id"], title, site)    
+            )
+            db.commit()
+            flash("Job created. ADd its circuits next.", "ok")
+            return redirect(url_for("jobs.detail", job_id=cur.lastrowid))
+        for e in errors:
+            flash(e, "error")
+        return render_template("job_new.html", clients=clients, title=title, site=site, client_id=client_id), 400
+
+    if not clients:
+        flash("Add a client before creating a job.", "error")
+        return redirect(url_for("clients.index"))
+    return render_template("job_new.html", clients=clients, title="", site="", client_id=None)
