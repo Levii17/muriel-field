@@ -82,7 +82,7 @@ def edit_circuit(job_id, circuit_id):
 
 @bp.post("/jobs/<int:job_id>/circuits/<int:circuit_id/delete")
 @login_required
-def delete_circuit(job_id, circuit_id)
+def delete_circuit(job_id, circuit_id):
     job = get_job_or_404(job_id)
     locked = refuse_if_locked(job)
     if locked:
