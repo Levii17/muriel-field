@@ -79,3 +79,19 @@ def _load_job_data(job_id):
         "unverified_limits": any(r["limit_verified"] == 0 for r in readings),
     }
     return {"job": job, "circuits": circuits, "defects": defects, "summary": summary}
+
+@bp.get("/")
+@login_required
+def index():
+    jobs = get_db().execute(
+        """
+        SELECT j.id, j.title, j.site_address, j.status, j.created_at,
+                CASE WHEN j.status = 'reported' THEN j.client_name ELSE c.name END AS client_display,
+                (SELECT COUNT(*) FROM defects d WHERE d.job_id = j.id AND d.status = 'open') AS open_defects
+        FROM jobs j JOIN clients c ON c.id = j.client_id
+        WHERE j.user_id = ?
+        ORDER BY j.created_at DESC, j.id DESC
+        """,
+        (g.user["id"])
+    ).fetchall()
+    return render_template("index.html", jobs=jobs, labels=STATUS_LABELS)
