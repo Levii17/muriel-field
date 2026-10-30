@@ -139,3 +139,25 @@ def new():
         flash("Add a client before creating a job.", "error")
         return redirect(url_for("clients.index"))
     return render_template("job_new.html", clients=clients, title="", site="", client_id=None)
+
+@bp.get("/jobs/<int:job_id>")
+@login_required
+def detail(job_id):
+    data = _load_job_data(job_id)
+    db = get_db()
+    return render_template(
+        "job_detail.html", **data,
+        editable=job_is_editable(data["job"]),
+        next_stage=next_status(data["job"]["status"]),
+        labels=STATUS_LABELS,
+        clients=db.execute(
+            "SELECT id, name FROM clients WHERE user_id = ? "
+            "ORDER BY name COLLATE NOCASE",
+            (g.user["id"])
+        ).fetchall(),
+        test_type=db.execute(
+            "SELECT * FROM test_types ORDER BY label"
+        ).fetchall(),
+        protection_types=PROTECTION_TYPES,
+        severities=SEVERITIES
+    )
