@@ -203,3 +203,36 @@ def delete(job_id):
     db.commit()
     flash("Job deleted.", "ok")
     return  redirect(url_for("jobs.index"))
+
+@bp.post("/jobs/<int:job_id>/advance")
+@login_required
+def advance(job_id):
+    job = get_job_or_404(job_id)
+    # nothing from the browser is read here. the next stage comes from the
+    # status stored in the database.
+    target = next_status(job["status"])
+    if target is None:
+        flash("This job is already final.", "error")
+        return redirect(url_for("jobs.detail", job_id=job_id))
+    db = get_db()
+    if target == "reported":
+        cur = db.execute(
+            REPORT_UPDATE,
+            (job_id, g.user["id"])
+        )
+    else:
+        cur = db.execute(
+            "UPDATE jobs SET status = ?, update_at = datetime('now') "
+            "WHERE id = ? AND user_id = ? AND status = ?",
+            (target, job_id, g.user["id"], job["status"])
+        )
+    db.commit()
+
+    if cur.rowcount == 0:
+        flash("The job's status changed in the meantime. Reload and try again.", "error")
+    elif target == "reported":
+        flash("Job finalized. Its records are now locked.", "ok")
+    else:
+        flash(f"Job moved to: {STATUS_LABELS[target]}.", "ok")
+    return redirect(url_for("jobs.detail", job_id=job_id))
+
