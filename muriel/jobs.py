@@ -161,3 +161,45 @@ def detail(job_id):
         protection_types=PROTECTION_TYPES,
         severities=SEVERITIES
     )
+
+@bp.post("/jobs/<int:job_id/edit")
+@login_required
+def edit(job_id):
+    job = get_job_or_404(job_id)
+    locked = refuse_if_locked(job)
+    if locked:
+        return locked
+    db = get_db()
+    title, site = field("title", 150), field("site_address", 250)
+    client_id = int_field("client_id")
+    client = None if client_id is None else db.execute(
+        "SELECT id FROM clients WHERE id = ? AND user_id = ?",
+        (client_id, g.user["id"])
+    ).fetchone()
+    if not title or not site or client is None:
+        flash("Title, site address and one of your clients are all required.", "error")
+    else:
+        db.execute(
+            "UPDATE jobs SET title = ?, site_address = ?, client_id = ?, "
+            "updated_at = datetime('now') WHERE id = ? AND user_id = ?",
+            (title, site, client["id"], job_id, g.user["id"])
+        )
+        db.commit()
+        flash("Job updated.", "ok")
+    return redirect(url_for("jobs.detail", job_id=job_id))
+
+@bp.post("/jobs/<int:job_id>/delete")
+@login_required
+def delete(job_id):
+    job = get_job_or_404(job_id)
+    locked = refuse_if_locked(job)
+    if locked:
+            return locked
+    db = get_db()
+    db.execute(
+        "DELETE FROM jobs WHERE id = ? AND user_id = ?",
+        (job_id, g.user["id"])
+    )
+    db.commit()
+    flash("Job deleted.", "ok")
+    return  redirect(url_for("jobs.index"))
