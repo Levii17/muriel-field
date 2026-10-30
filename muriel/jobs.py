@@ -236,3 +236,7 @@ def advance(job_id):
         flash(f"Job moved to: {STATUS_LABELS[target]}.", "ok")
     return redirect(url_for("jobs.detail", job_id=job_id))
 
+@bp.get("/jobs/<int:job_id>/report")
+@login_required
+def report(job_id):
+    return render_template("report.html", **_load_job_data(job_id), labels=STATUS_LABELS)
