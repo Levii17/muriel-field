@@ -1,5 +1,5 @@
-""" defects: add, resolve, reopen, delete"""
-from flask import (Blueprint, flash, redirect, url_for)
+""" defects: add, resolve, reopen, delete. """
+from flask import Blueprint, flash, redirect, url_for
 
 from .auth import login_required
 from .constants import SEVERITIES
@@ -25,7 +25,7 @@ def add(job_id):
         flash("Describe the defect.", "error")
         return _back(job_id)
     if severity not in SEVERITIES:
-        flash("Choose a severity from the list", "error")
+        flash("Choose a severity from the list.", "error")
         return _back(job_id)
     circuit_id = None
     if circuit_raw:
@@ -33,9 +33,10 @@ def add(job_id):
         if cid is None:
             flash("Choose a circuit from the list.", "error")
             return _back(job_id)
-        circuit_id = get_circuit_or_404(job, cid)["id"] # must be a circuit of this job.
+        circuit_id = get_circuit_or_404(job, cid)["id"]  # must be a circuit of THIS job.
     db = get_db()
-    db.execute("INSERT INTO defects (job_id, circuit_id, description, severity) VALUES (?, ?, ?, ?)", (job_id, circuit_id, description, severity))
+    db.execute("INSERT INTO defects (job_id, circuit_id, description, severity) VALUES (?, ?, ?, ?)",
+               (job_id, circuit_id, description, severity))
     db.commit()
     flash("Defect logged.", "ok")
     return _back(job_id)
@@ -64,7 +65,7 @@ def reopen(job_id, defect_id):
         return locked
     get_defect_or_404(job, defect_id)
     db = get_db()
-    # resolved_at must be cleared: the schema's CHECK refuses 'open' with a timestamp.
+    # resolved_at MUST be cleared: the schema's CHECK refuses 'open' with a timestamp.
     db.execute("UPDATE defects SET status = 'open', resolved_at = NULL "
                "WHERE id = ? AND job_id = ?", (defect_id, job_id))
     db.commit()
