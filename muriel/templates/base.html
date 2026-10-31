@@ -1,0 +1,39 @@
+{% from "_macros.html" import csrf %}
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{% block title %}Muriel Field{% endblock %} · Muriel Field</title>
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='style.css') }}"
+    />
+  </head>
+  <body>
+    <header class="topbar noprint">
+      <a class="brand" href="{{ url_for('jobs.index') }}">Muriel Field</a>
+      {% if g.user %}
+      <nav>
+        <a href="{{ url_for('jobs.index') }}">Jobs</a>
+        <a href="{{ url_for('clients.index') }}">Clients</a>
+        <form
+          method="post"
+          action="{{ url_for('auth.logout') }}"
+          class="inline"
+        >
+          {{ csrf() }}<button class="link">
+            Log out ({{ g.user['name'] }})
+          </button>
+        </form>
+      </nav>
+      {% endif %}
+    </header>
+    <main>
+      {% for category, message in get_flashed_messages(with_categories=true) %}
+      <p class="flash {{ category }}" role="status">{{ message }}</p>
+      {% endfor %} {% block content %}{% endblock %}
+    </main>
+    {% block scripts %}{% endblock %}
+  </body>
+</html>
