@@ -1,5 +1,5 @@
-"""clients: list, create, edit. (deleting a client is blocked while jobs use it.)"""
-from flask import (Blueprint, flash, g, redirect, render_template, request, url_for)
+""" clients: list, create, edit. (deleting a client is blocked while jobs use it.) """
+from flask import Blueprint, flash, g, redirect, render_template, request, url_for
 
 from .auth import login_required
 from .db import get_db
@@ -20,7 +20,8 @@ def _client_form():
 def index():
     rows = get_db().execute(
         "SELECT c.*, (SELECT COUNT(*) FROM jobs j WHERE j.client_id = c.id) AS job_count "
-        "FROM clients c WHERE c.user_id = ? ORDER BY c.name COLLATE NOCASE", (g.user["id"])
+        "FROM clients c WHERE c.user_id = ? ORDER BY c.name COLLATE NOCASE", 
+        (g.user["id"],)
     ).fetchall()
     return render_template("clients.html", clients=rows)
 
@@ -37,7 +38,7 @@ def create():
     flash("Client added.", "ok")
     return redirect(url_for("clients.index"))
 
-@bp.post("/")
+@bp.route("/<int:client_id>/edit", methods=("GET", "POST"))
 @login_required
 def edit(client_id):
     client = get_client_or_404(client_id)
