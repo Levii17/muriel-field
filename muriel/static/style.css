@@ -229,3 +229,37 @@ th {
 .result-unchecked {
   color: var(--muted);
 }
+.flash {
+  padding: 0.6rem 0.8rem;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: #fff;
+}
+.flash.ok {
+  border-color: #a8d5b5;
+  background: #e6f4ea;
+}
+.flash.error {
+  border-color: #f0b4ae;
+  background: #fdeceb;
+}
+.live-result {
+  font-size: 0.9rem;
+  align-self: center;
+}
+.live-result.pass {
+  color: var(--ok);
+}
+.live-result.flag,
+.live-result.bad {
+  color: var(--bad);
+  font-weight: 600;
+}
+.live-result.unchecked {
+  color: var(--muted);
+}
+details summary {
+  cursor: pointer;
+  color: var(--accent);
+  margin: 0.5rem 0;
+}
