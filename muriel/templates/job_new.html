@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% from "_macros.html" import csrf %}
+{% block title %}New job{% endblock %}
+{% block content %}
+<h1>New job</h1>
+<form method="post" class="stack narrow">
+  {{ csrf() }}
+  <label>Job title <input name="title" value="{{ title }}" required autofocus></label>
+  <label>Client
+    <select name="client_id" required>
+      {% for c in clients %}<option value="{{ c['id'] }}" {{ 'selected' if client_id == c['id'] }}>{{ c['name'] }}</option>{% endfor %}
+    </select>
+  </label>
+  <label>Site address <input name="site_address" value="{{ site }}" required></label>
+  <button class="btn primary">Create job</button>
+  <a href="{{ url_for('jobs.index') }}">Cancel</a>
+</form>
+{% endblock %}
