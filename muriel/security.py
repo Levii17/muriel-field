@@ -1,6 +1,4 @@
-"""
-CSRF protection: a random token per session, checked on every write.
-"""
+"""CSRF protection: a random token per session, checked on every write."""
 import secrets
 from flask import abort, request, session
 
@@ -20,4 +18,4 @@ def init_app(app):
             sent = request.form.get("csrf_token") or request.headers.get("X-CSRF-Token", "")
             expected = session.get("csrf_token", "")
             if not expected or not secrets.compare_digest(sent.encode(), expected.encode()):
-                abort(400, "missing or invalid CSRF token. reload the page and try again.")
+                abort(400, "Missing or invalid CSRF token. Reload the page and try again.")
