@@ -1,0 +1,201 @@
+{% extends "base.html" %}
+{% from "_macros.html" import csrf, status_badge, result_badge %}
+{% block title %}{{ job['title'] }}{% endblock %}
+{% block content %}
+<div class="head">
+  <div>
+    <h1>{{ job['title'] }} {{ status_badge(job['status'], labels) }}</h1>
+    <p class="muted">
+      {{ job['site_address'] }} &middot; Client: {{ job['client_display'] }}
+      {% if job['client_phone_display'] %}&middot; {{ job['client_phone_display'] }}{% endif %}
+    </p>
+  </div>
+  <div class="actions">
+    <a class="btn" href="{{ url_for('jobs.report', job_id=job['id']) }}">View report</a>
+    {% if next_stage %}
+    <form method="post" action="{{ url_for('jobs.advance', job_id=job['id']) }}"
+          {% if next_stage == 'reported' %}onsubmit="return confirm('Finalize this job? Its records will be locked and cannot be changed afterwards.')"{% endif %}>
+      {{ csrf() }}<button class="btn primary">Move to: {{ labels[next_stage] }}</button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+
+{% if not editable %}
+<p class="flash error">This job is finalized. Its circuits, readings, defects and details are locked.</p>
+{% endif %}
+
+{% if editable %}
+<details class="card">
+  <summary>Edit job details</summary>
+  <form method="post" action="{{ url_for('jobs.edit', job_id=job['id']) }}" class="stack">
+    {{ csrf() }}
+    <label>Job title <input name="title" value="{{ job['title'] }}" required></label>
+    <label>Client
+      <select name="client_id">
+        {% for c in clients %}<option value="{{ c['id'] }}" {{ 'selected' if c['id'] == job['client_id'] }}>{{ c['name'] }}</option>{% endfor %}
+      </select>
+    </label>
+    <label>Site address <input name="site_address" value="{{ job['site_address'] }}" required></label>
+    <button class="btn">Save details</button>
+  </form>
+  <form method="post" action="{{ url_for('jobs.delete', job_id=job['id']) }}"
+        onsubmit="return confirm('Delete this job and everything recorded on it?')">
+    {{ csrf() }}<button class="btn danger">Delete job</button>
+  </form>
+</details>
+{% endif %}
+
+<h2 id="circuits">Circuits</h2>
+{% for c in circuits %}
+<section class="card" id="circuit-{{ c['id'] }}">
+  <div class="head">
+    <h3>{{ c['name'] }}</h3>
+    <span class="muted">
+      {{ c['protection_type'] or 'No protection type' }}{% if c['protection_rating_a'] %} &middot; {{ c['protection_rating_a'] }} A{% endif %}
+    </span>
+  </div>
+  {% if c['description'] %}<p>{{ c['description'] }}</p>{% endif %}
+
+  {% if c['readings'] %}
+  <div class="scroll"><table>
+    <thead><tr><th>Test</th><th>Reading</th><th>Limit</th><th>Result</th><th>Notes</th>{% if editable %}<th></th>{% endif %}</tr></thead>
+    <tbody>
+    {% for r in c['readings'] %}
+      <tr>
+        <td>{{ r['test_label'] }}</td>
+        <td>{{ '%g'|format(r['value']) }} {{ r['unit'] }}</td>
+        <td>
+          {% if r['limit_value'] is not none %}
+            {{ '≤' if r['limit_comparison'] == 'max' else '≥' }} {{ '%g'|format(r['limit_value']) }} {{ r['unit'] }}
+            {% if r['limit_verified'] == 0 %}<span class="warn">unverified limit</span>{% endif %}
+          {% else %}&mdash;{% endif %}
+        </td>
+        <td>{{ result_badge(r['result']) }}</td>
+        <td>{{ r['notes'] or '' }}</td>
+        {% if editable %}
+        <td>
+          <form method="post" action="{{ url_for('circuits.delete_reading', job_id=job['id'], reading_id=r['id']) }}"
+                onsubmit="return confirm('Delete this reading?')">
+            {{ csrf() }}<button class="link danger">Delete</button>
+          </form>
+        </td>
+        {% endif %}
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  {% else %}
+  <p class="muted">No readings yet.</p>
+  {% endif %}
+
+  {% if editable %}
+  <form method="post" action="{{ url_for('circuits.add_reading', job_id=job['id'], circuit_id=c['id']) }}"
+        class="row" data-check-url="{{ url_for('circuits.live_check', job_id=job['id'], circuit_id=c['id']) }}">
+    {{ csrf() }}
+    <label>Test
+      <select name="test_type" required>
+        {% for t in test_types %}<option value="{{ t['code'] }}">{{ t['label'] }} ({{ t['unit'] }})</option>{% endfor %}
+      </select>
+    </label>
+    <label>Reading <input type="number" name="value" step="any" min="0" required inputmode="decimal"></label>
+    <label>Notes <input name="notes" maxlength="300"></label>
+    <button class="btn">Record reading</button>
+    <span class="live-result" aria-live="polite"></span>
+  </form>
+
+  <details>
+    <summary>Edit or delete this circuit</summary>
+    <form method="post" action="{{ url_for('circuits.edit_circuit', job_id=job['id'], circuit_id=c['id']) }}" class="stack">
+      {{ csrf() }}
+      <label>Name <input name="name" value="{{ c['name'] }}" required></label>
+      <label>Description <input name="description" value="{{ c['description'] or '' }}"></label>
+      <label>Protection type
+        <select name="protection_type">
+          <option value="">(none)</option>
+          {% for p in protection_types %}<option {{ 'selected' if c['protection_type'] == p }}>{{ p }}</option>{% endfor %}
+        </select>
+      </label>
+      <label>Rating (A) <input type="number" name="protection_rating_a" min="1" step="1" value="{{ c['protection_rating_a'] or '' }}"></label>
+      <button class="btn">Save circuit</button>
+    </form>
+    <form method="post" action="{{ url_for('circuits.delete_circuit', job_id=job['id'], circuit_id=c['id']) }}"
+          onsubmit="return confirm('Delete this circuit and all its readings?')">
+      {{ csrf() }}<button class="btn danger">Delete circuit</button>
+    </form>
+  </details>
+  {% endif %}
+</section>
+{% else %}
+<p class="muted">No circuits yet.</p>
+{% endfor %}
+
+{% if editable %}
+<form method="post" action="{{ url_for('circuits.add_circuit', job_id=job['id']) }}" class="stack card">
+  {{ csrf() }}
+  <h3>Add a circuit</h3>
+  <label>Name <input name="name" placeholder="e.g. Kitchen sockets" required></label>
+  <label>Description <input name="description"></label>
+  <label>Protection type
+    <select name="protection_type">
+      <option value="">(none)</option>
+      {% for p in protection_types %}<option>{{ p }}</option>{% endfor %}
+    </select>
+  </label>
+  <label>Rating (A) <input type="number" name="protection_rating_a" min="1" step="1"></label>
+  <button class="btn primary">Add circuit</button>
+</form>
+{% endif %}
+
+<h2 id="defects">Defects</h2>
+{% if defects %}
+<div class="scroll"><table>
+  <thead><tr><th>Defect</th><th>Circuit</th><th>Severity</th><th>Status</th>{% if editable %}<th></th>{% endif %}</tr></thead>
+  <tbody>
+  {% for d in defects %}
+    <tr>
+      <td>{{ d['description'] }}</td>
+      <td>{{ d['circuit_name'] or 'General' }}</td>
+      <td>{{ d['severity']|capitalize }}</td>
+      <td>{% if d['status'] == 'open' %}<strong>Open</strong>{% else %}Resolved {{ d['resolved_at']|localtime("%d %b %Y") }}{% endif %}</td>
+      {% if editable %}
+      <td class="row">
+        {% if d['status'] == 'open' %}
+        <form method="post" action="{{ url_for('defects.resolve', job_id=job['id'], defect_id=d['id']) }}">{{ csrf() }}<button class="link">Resolve</button></form>
+        {% else %}
+        <form method="post" action="{{ url_for('defects.reopen', job_id=job['id'], defect_id=d['id']) }}">{{ csrf() }}<button class="link">Reopen</button></form>
+        {% endif %}
+        <form method="post" action="{{ url_for('defects.delete', job_id=job['id'], defect_id=d['id']) }}"
+              onsubmit="return confirm('Delete this defect?')">{{ csrf() }}<button class="link danger">Delete</button></form>
+      </td>
+      {% endif %}
+    </tr>
+  {% endfor %}
+  </tbody>
+</table></div>
+{% else %}
+<p class="muted">No defects logged.</p>
+{% endif %}
+
+{% if editable %}
+<form method="post" action="{{ url_for('defects.add', job_id=job['id']) }}" class="stack card">
+  {{ csrf() }}
+  <h3>Log a defect</h3>
+  <label>Description <input name="description" required maxlength="500"></label>
+  <label>Circuit
+    <select name="circuit_id">
+      <option value="">General (whole installation)</option>
+      {% for c in circuits %}<option value="{{ c['id'] }}">{{ c['name'] }}</option>{% endfor %}
+    </select>
+  </label>
+  <label>Severity
+    <select name="severity">
+      {% for s in severities %}<option value="{{ s }}" {{ 'selected' if s == 'medium' }}>{{ s|capitalize }}</option>{% endfor %}
+    </select>
+  </label>
+  <button class="btn primary">Log defect</button>
+</form>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}<script src="{{ url_for('static', filename='live_check.js') }}"></script>{% endblock %}
