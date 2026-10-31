@@ -263,3 +263,24 @@ details summary {
   color: var(--accent);
   margin: 0.5rem 0;
 }
+.report {
+  background: var(--card);
+  padding: 1.25rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.notice {
+  border-left: 4px solid var(--warn);
+  background: #fff8e6;
+  padding: 0.5rem 0.75rem;
+}
+.notice.draft {
+  border-color: var(--bad);
+  background: #fdeceb;
+}
+table.kv {
+  width: auto;
+}
+table.kv th {
+  padding-right: 1.5rem;
+}

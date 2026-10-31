@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% from "_macros.html" import result_badge %}
+{% block title %}Inspection record: {{ job['title'] }}{% endblock %}
+{% block content %}
+<article class="report">
+  <p class="noprint">
+    <a href="{{ url_for('jobs.detail', job_id=job['id']) }}">&larr; Back to job</a>
+    &nbsp; <button class="btn" onclick="window.print()">Print</button>
+  </p>
+
+  <h1>Inspection record</h1>
+  <p class="notice"><strong>This is an inspection record. It is not a certificate of compliance.</strong>
+    Readings are recorded and flagged against the limit values held in the app's limits table; the app does not certify an installation.</p>
+  {% if job['status'] != 'reported' %}
+  <p class="notice draft"><strong>DRAFT.</strong> This job has not been finalized, so this record may still change.</p>
+  {% endif %}
+
+  <table class="kv">
+    <tr><th>Job</th><td>{{ job['title'] }}</td></tr>
+    <tr><th>Site</th><td>{{ job['site_address'] }}</td></tr>
+    <tr><th>Client</th><td>{{ job['client_display'] }}</td></tr>
+    {% if job['client_phone_display'] %}<tr><th>Client phone</th><td>{{ job['client_phone_display'] }}</td></tr>{% endif %}
+    {% if job['client_email_display'] %}<tr><th>Client email</th><td>{{ job['client_email_display'] }}</td></tr>{% endif %}
+    <tr><th>Recorded by</th><td>{{ job['electrician_display'] }}</td></tr>
+    <tr><th>Status</th><td>{{ labels[job['status']] }}</td></tr>
+    <tr><th>Job created</th><td>{{ job['created_at']|localtime }}</td></tr>
+    {% if job['status'] == 'reported' %}<tr><th>Finalized</th><td>{{ job['updated_at']|localtime }}</td></tr>{% endif %}
+  </table>
+
+  <h2>Summary</h2>
+  <p>Readings: {{ summary['pass'] }} pass, {{ summary['flag'] }} flagged, {{ summary['unchecked'] }} unchecked.
+     Open defects: {{ summary['open_defects'] }}.</p>
+  {% if summary['unverified_limits'] %}
+  <p class="notice">Some readings were checked against limit values that have <strong>not</strong> been marked as verified against the applicable standard.</p>
+  {% endif %}
+  {% if summary['unchecked'] %}
+  <p class="notice">{{ summary['unchecked'] }} reading(s) had no matching limit on file and were not checked.</p>
+  {% endif %}
+
+  <h2>Circuits and test readings</h2>
+  {% for c in circuits %}
+  <section class="avoid-break">
+    <h3>{{ c['name'] }}
+      <span class="muted">{{ c['protection_type'] or '' }}{% if c['protection_rating_a'] %} {{ c['protection_rating_a'] }} A{% endif %}</span></h3>
+    {% if c['description'] %}<p>{{ c['description'] }}</p>{% endif %}
+    {% if c['readings'] %}
+    <div class="scroll"><table>
+      <thead><tr><th>Test</th><th>Reading</th><th>Limit</th><th>Result</th><th>Notes</th></tr></thead>
+      <tbody>
+      {% for r in c['readings'] %}
+        <tr>
+          <td>{{ r['test_label'] }}</td>
+          <td>{{ '%g'|format(r['value']) }} {{ r['unit'] }}</td>
+          <td>{% if r['limit_value'] is not none %}{{ '≤' if r['limit_comparison'] == 'max' else '≥' }} {{ '%g'|format(r['limit_value']) }} {{ r['unit'] }}{% if r['limit_verified'] == 0 %} (unverified){% endif %}{% else %}&mdash;{% endif %}</td>
+          <td>{{ result_badge(r['result']) }}</td>
+          <td>{{ r['notes'] or '' }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table></div>
+    {% else %}<p class="muted">No readings recorded.</p>{% endif %}
+  </section>
+  {% else %}
+  <p class="muted">No circuits recorded.</p>
+  {% endfor %}
+
+  <h2>Defects</h2>
+  {% if defects %}
+  <div class="scroll"><table>
+    <thead><tr><th>Defect</th><th>Circuit</th><th>Severity</th><th>Status</th></tr></thead>
+    <tbody>
+    {% for d in defects %}
+      <tr>
+        <td>{{ d['description'] }}</td><td>{{ d['circuit_name'] or 'General' }}</td>
+        <td>{{ d['severity']|capitalize }}</td>
+        <td>{% if d['status'] == 'open' %}Open{% else %}Resolved {{ d['resolved_at']|localtime("%d %b %Y") }}{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  {% else %}<p class="muted">No defects recorded.</p>{% endif %}
+
+  <p class="muted">Times are shown in South African local time (UTC+2).</p>
+</article>
+{% endblock %}
