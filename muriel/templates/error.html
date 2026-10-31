@@ -1,0 +1,10 @@
+{% extends "base.html" %} {% block title %}Error {{ code }}{% endblock %} {%
+block content %}
+<h1>{{ code }}</h1>
+<p>{{ message }}</p>
+<p>
+  <a href="{{ url_for('jobs.index') if g.user else url_for('auth.login') }}"
+    >Back</a
+  >
+</p>
+{% endblock %}
