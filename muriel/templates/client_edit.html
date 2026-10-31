@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% from "_macros.html" import csrf %}
+{% block title %}Edit client{% endblock %}
+{% block content %}
+<h1>Edit client</h1>
+<form method="post" class="stack narrow">
+  {{ csrf() }}
+  <label>Name <input name="name" value="{{ client['name'] }}" required></label>
+  <label>Phone <input name="phone" value="{{ client['phone'] or '' }}"></label>
+  <label>Email <input type="email" name="email" value="{{ client['email'] or '' }}"></label>
+  <label>Notes <textarea name="notes" rows="3">{{ client['notes'] or '' }}</textarea></label>
+  <button class="btn primary">Save</button>
+  <a href="{{ url_for('clients.index') }}">Cancel</a>
+</form>
+<p class="muted">Jobs that are already reported keep the client details they were finalized with.</p>
+{% endblock %}
