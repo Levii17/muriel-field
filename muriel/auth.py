@@ -1,6 +1,4 @@
-"""
-accounts: register, log in, log out, and the login_required decorator.
-"""
+""" accounts: register, log in, log out, and the login_required decorator. """
 import functools
 import sqlite3
 
@@ -8,7 +6,6 @@ from flask import (Blueprint, flash, g, jsonify, redirect, render_template, requ
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from .db import get_db
-
 from .forms import field
 
 bp = Blueprint("auth", __name__)
@@ -23,8 +20,7 @@ def load_user():
     user_id = session.get("user_id")
     if user_id is not None:
         g.user = get_db().execute(
-            "SELECT id, email, name FROM users WHERE id = ?", (user_id,)
-        ).fetchone()
+            "SELECT id, email, name FROM users WHERE id = ?", (user_id,)).fetchone()
         if g.user is None:
             session.clear()
 
@@ -39,7 +35,7 @@ def login_required(view):
     return wrapped
 
 def _start_session(user_id):
-    session.clear() # new session on login: drops any pre-login state.
+    session.clear()  # new session on login: drops any pre-login state.
     session["user_id"] = user_id
 
 @bp.route("/register", methods=("GET", "POST"))
@@ -66,8 +62,7 @@ def register():
             try:
                 cur = db.execute(
                     "INSERT INTO users (email, password_hash, name) VALUES (?, ?, ?)",
-                    (email, generate_password_hash(password), name)
-                )
+                    (email, generate_password_hash(password), name))
                 db.commit()
             except sqlite3.IntegrityError:
                 errors.append("That email is already registered.")
@@ -76,7 +71,7 @@ def register():
                 flash("Welcome! Add a client, then create your first job.", "ok")
                 return redirect(url_for("jobs.index"))
         for e in errors:
-            flash(e, "errors")
+            flash(e, "error")
         return render_template("register.html", name=name, email=email), 400
     return render_template("register.html", name="", email="")
 
@@ -88,17 +83,16 @@ def login():
         email = field("email", 200).lower()
         password = request.form.get("password") or ""
         user = get_db().execute(
-            "SELECT id, password_hash FROM users WHERE email = ?", (email)
-        ).fetchone()
+            "SELECT id, password_hash FROM users WHERE email = ?", (email,)).fetchone()
         ok = check_password_hash(user["password_hash"] if user else _DUMMY_HASH, password)
         if user and ok:
             _start_session(user["id"])
             return redirect(url_for("jobs.index"))
         flash("Wrong email or password.", "error")
         return render_template("login.html", email=email), 400
-    return render_template("login.html", email="")    
+    return render_template("login.html", email="")
 
 @bp.post("/logout")
 def logout():
     session.clear()
-    return redirect(url_for("auth.login"))    
+    return redirect(url_for("auth.login"))
