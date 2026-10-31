@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% from "_macros.html" import status_badge %}
+{% block title %}Jobs{% endblock %}
+{% block content %}
+<div class="head"><h1>My jobs</h1><a class="btn primary" href="{{ url_for('jobs.new') }}">New job</a></div>
+{% if jobs %}
+<div class="scroll"><table>
+  <thead><tr><th>Job</th><th>Client</th><th>Site</th><th>Status</th><th>Open defects</th><th>Created</th></tr></thead>
+  <tbody>
+  {% for j in jobs %}
+    <tr>
+      <td><a href="{{ url_for('jobs.detail', job_id=j['id']) }}">{{ j['title'] }}</a></td>
+      <td>{{ j['client_display'] }}</td>
+      <td>{{ j['site_address'] }}</td>
+      <td>{{ status_badge(j['status'], labels) }}</td>
+      <td>{% if j['open_defects'] %}<strong>{{ j['open_defects'] }}</strong>{% else %}0{% endif %}</td>
+      <td>{{ j['created_at']|localtime("%d %b %Y") }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table></div>
+{% else %}
+<p>No jobs yet. <a href="{{ url_for('clients.index') }}">Add a client</a>, then create your first job.</p>
+{% endif %}
+{% endblock %}

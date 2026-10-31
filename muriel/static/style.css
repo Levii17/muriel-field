@@ -173,3 +173,59 @@ th {
   color: var(--warn);
   font-size: 0.85rem;
 }
+.badge {
+  display: inline-block;
+  padding: 0.05rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  border: 1px solid var(--line);
+  background: #eef1f4;
+  vertical-align: middle;
+}
+.status-reported {
+  background: #e6f4ea;
+  border-color: #a8d5b5;
+}
+.status-tested {
+  background: #e7f0fb;
+  border-color: #b3cdee;
+}
+.result-pass {
+  color: var(--ok);
+}
+.result-flag {
+  color: var(--bad);
+  background: #fdeceb;
+}
+.result-unchecked {
+  color: var(--muted);
+}
+.badge {
+  display: inline-block;
+  padding: 0.05rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  border: 1px solid var(--line);
+  background: #eef1f4;
+  vertical-align: middle;
+}
+.status-reported {
+  background: #e6f4ea;
+  border-color: #a8d5b5;
+}
+.status-tested {
+  background: #e7f0fb;
+  border-color: #b3cdee;
+}
+.result-pass {
+  color: var(--ok);
+}
+.result-flag {
+  color: var(--bad);
+  background: #fdeceb;
+}
+.result-unchecked {
+  color: var(--muted);
+}
