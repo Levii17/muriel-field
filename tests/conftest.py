@@ -30,3 +30,10 @@ class Browser:
         """ first capture group of `pattern` is a redirect location, as int. """
         return int(re.search(pattern, response.headers["Location"]).group(1))
     
+@pytest.fixture
+def app(tmp_path):
+    app = create_app({"TESTING": True, "SECRET_KEY": "test", "DATABASE": str(tmp_path / "t.sqlite")})
+    with app.app_context():
+        init_db()
+    return app
+
