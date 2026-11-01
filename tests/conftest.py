@@ -37,3 +37,12 @@ def app(tmp_path):
         init_db()
     return app
 
+@pytest.fixture
+def raw(app):
+    """ direct database access for assertions and for adding test limits. """
+    conn = sqlite3.connect(app.config["DATABASE"])
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON")
+    yield conn
+    conn.close()
+    
