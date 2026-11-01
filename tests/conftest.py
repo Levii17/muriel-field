@@ -45,4 +45,15 @@ def raw(app):
     conn.execute("PRAGMA foreign_keys = ON")
     yield conn
     conn.close()
-    
+
+@pytest.fixture
+def luu(app):
+    b = Browser(app)
+    assert b.register("luu", "luu@example.com").status_code == 302
+    return b
+
+@pytest.fixture
+def khanzy(app):
+    b = Browser(app)
+    assert b.register("khanzy", "khanzy@example.com").status_code == 302
+    return b
