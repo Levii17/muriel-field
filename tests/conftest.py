@@ -57,3 +57,12 @@ def khanzy(app):
     b = Browser(app)
     assert b.register("khanzy", "khanzy@example.com").status_code == 302
     return b
+
+@pytest.fixture
+def job(luu):
+    """ luu's client, a draft job, and one circuit (MCB B, 20, A). """
+    luu.post("/clients/", name="Ona", phone="076 555 0100", email="onalenna@example.com")
+    r = luu.post("/jobs/new", title="Kitchen DB", client_id="1", site_address="1 Test Street")
+    job_id = luu.id_form(r, r"/jobs/(\d+)")
+    luu.post(f"/jobs/{job_id}/circuits", name="Sockets", protection_type="MCB B", protection_rating_a="20")
+    return job_id
