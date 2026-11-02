@@ -114,7 +114,7 @@ def new():
             errors.append("Choose one of your clients.")
         if not errors:
             cur = db.execute(
-                "INSERT INTO jobs (user_id, client_id, tit9le, site_address) VALUES (?, ?, ?, ?)",
+                "INSERT INTO jobs (user_id, client_id, title, site_address) VALUES (?, ?, ?, ?)",
                 (g.user["id"], client["id"], title, site))
             db.commit()
             flash("Job created. Add its circuits next.", "ok")
