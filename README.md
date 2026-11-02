@@ -40,3 +40,16 @@ routes marked 🔒 also call `refuse_if_locked(job)` and do nothing on a finaliz
 | POST      | `/jobs/<id>/defects/<did>/resolve` 🔒   | mark resolved (sets `resolved_at`)                           |
 | POST      | `/jobs/<id>/defects/<did>/reopen` 🔒    | reopen (clears `resolved_at`)                                |
 | POST      | `/jobs/<id>/defects/<did>/delete` 🔒    | delete a defect                                              |
+
+## design choices
+
+each of these have a fuller explanation in `/docs/notes.md`.
+
+- **why every table is scoped to a user:** ownership lives on `clients` & `jobs`; everything else is reached through a job. composite foreign keys make the database refuse cross-user links as a second line of defense.
+- **why the server decides pass or flag:** the browser only previews, through the same python function.
+- **why readings store a copy of the limit:** so editing or deleting a limit later never changes an old report.
+- **why `flag` and not `fail`:** the app doesn't certify anything.
+- **why status only moves forward, and the browser never sends it:** stage order is enforced by a trigger & by the advance route reading the stored status.
+- **why a `reported` job is locked, in the app & in the database:** the report is the frozen record. `job_is_editable` gives a friendly message; the triggers catch anything a route misses.
+- **why client & electrician details are copied onto the job when it's reported:** same idea as the limit snapshot: later edits to a client must not rewrite the finished report.
+- **why `test_types` is seed data:** readings keep the limit and its direction, not the unit or label, so editing a unit would change what old readings mean.
