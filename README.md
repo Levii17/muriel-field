@@ -53,3 +53,17 @@ each of these have a fuller explanation in `/docs/notes.md`.
 - **why a `reported` job is locked, in the app & in the database:** the report is the frozen record. `job_is_editable` gives a friendly message; the triggers catch anything a route misses.
 - **why client & electrician details are copied onto the job when it's reported:** same idea as the limit snapshot: later edits to a client must not rewrite the finished report.
 - **why `test_types` is seed data:** readings keep the limit and its direction, not the unit or label, so editing a unit would change what old readings mean.
+
+## security basics in this app
+
+passwords hashed with `werkzeug.security`; session reset on login; CSRF token on every POST; parameterized SQL only; HttpOnly & SameSite cookies; every query scoped to the logged-in user; limit values and results validate on the server.
+
+## non-goals
+
+offline mode or syncing, multiple user roles, multi-company support, photo uploads, digital signatures, payments, mobile apps, and **account (user) deletion**.
+
+additionally: materials and costs, PDF export.
+
+## known limits
+
+no login rate limiting. no password reset. clients can't be deleted. readings can't be edited, only deleted & re-entered while the job is active.
