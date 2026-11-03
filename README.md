@@ -8,7 +8,63 @@ reports are labelled as inspection records, not certificates of compliance. limi
 
 **stack:** flask + jinja, sqlite, vanilla javascript (live reading check only).
 
+## run it
+
+```bash
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt**
+export SECRET_KEY="$(python -c 'import secrets; print(secrets.token_hex(32))')"
+flask --app muriel init-db
+flask --app muriel run --debug
+```
+
+open http://127.0.0.1:5000, register, add a client, create a job.
+
+serving over HTTPS: also set `MURIEL_SECURE_COOKIES=1`.
+
+### adding limit values
+
+the app ships with **no** limits. readings for a circuit with no matching limit are saved as `unchecked`. add limits from the standard, one at a time:
+
+```bash
+flask --app muriel add-limit --test-type earth_loop_impedance \
+  --protection-type "MCB B" --rating 20 --value <value> \
+  --source "<standard, edition, clause or table>"
+flask --app muriel list-limits
+```
+
+new limits start **unverified**. Check the value against the standard, then add `--verified` when you create it. reports show a note whenever a reading used an unverified limit. omit `--protection-type` or `--rating` for a limit that applies to any.
+
+### tests
+
+```bash
+python -m pytest
+```
+
+`tests/test_schema.py` talks to SQLite directly and proves the database enforces its own rules. `tests/test_app.py` goes through the routes: the whole flow, cross-user access, locking, CSRF, the reading checks.
+
 # layout
+
+```
+docs/
+    notes.md     decisions and rules, with the reasoning
+    project-brief.md
+muriel/
+    __init__.py   app factory, config, error pages, local-time filter
+    schema.sql    tables, CHECKs and triggers (the source of truth for the data rules)
+    db.py         one connection per request, foreign keys switched on
+    security.py   CSRF token
+    auth.py       register, login, logout, login_required
+    guards.py     ownership lookups, job_is_editable, refuse_if_locked
+    limits.py     limit lookup and the pass/flag calculation
+    clients.py  jobs.py  circuits.py  defects.py   the routes
+    cli.py        init-db, add-limit, list-limits
+    templates/
+    static/
+tests/
+README.md
+requirements.txt
+```
 
 ## routes
 
@@ -30,7 +86,7 @@ routes marked 🔒 also call `refuse_if_locked(job)` and do nothing on a finaliz
 | POST      | `/jobs/<id>/delete` 🔒                  | delete an unfinalized job                                    |
 | POST      | `/jobs/<id>/advance`                    | move to the next stage; the browser sends no status          |
 | GET       | `/jobs/<id>/report`                     | printable inspection record                                  |
-| POST      | `/jobs/<id>/circuits` 🔒                 | add a circuit                                                |
+| POST      | `/jobs/<id>/circuits` 🔒                | add a circuit                                                |
 | POST      | `/jobs/<id>/circuits/<cid>/edit` 🔒     | edit a circuit                                               |
 | POST      | `/jobs/<id>/circuits/<cid>/delete` 🔒   | delete a circuit and its readings                            |
 | POST      | `/jobs/<id>/circuits/<cid>/readings` 🔒 | record a reading; the server decides pass, flag or unchecked |
