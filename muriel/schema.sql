@@ -55,7 +55,6 @@ CREATE TABLE jobs (
         -- job becomes 'reported'; the same UPDATE that sets status = 'reported'
         -- must fill them (the CHECK below refuses it otherwise). after that the
         -- lock trigger stops them changing. reports read
-        -- COALESCE(job.client_name, client.name) etc.
     client_name TEXT,
     client_phone TEXT,
     client_email TEXT,

@@ -30,11 +30,11 @@ routes marked 🔒 also call `refuse_if_locked(job)` and do nothing on a finaliz
 | POST      | `/jobs/<id>/delete` 🔒                  | delete an unfinalized job                                    |
 | POST      | `/jobs/<id>/advance`                    | move to the next stage; the browser sends no status          |
 | GET       | `/jobs/<id>/report`                     | printable inspection record                                  |
-| POST      | `/jobs/<id>/circuit` 🔒                 | add a circuit                                                |
+| POST      | `/jobs/<id>/circuits` 🔒                 | add a circuit                                                |
 | POST      | `/jobs/<id>/circuits/<cid>/edit` 🔒     | edit a circuit                                               |
 | POST      | `/jobs/<id>/circuits/<cid>/delete` 🔒   | delete a circuit and its readings                            |
 | POST      | `/jobs/<id>/circuits/<cid>/readings` 🔒 | record a reading; the server decides pass, flag or unchecked |
-| POST      | `/jobs/<id>/circuits/<rid>/delete` 🔒   | delete a reading (typo correction)                           |
+| POST      | `/jobs/<id>/readings/<rid>/delete` 🔒   | delete a reading (typo correction)                           |
 | GET       | `/api/jobs/<id>/circuits/<cid>/check`   | json preview of a reading's result; saves nothing            |
 | POST      | `/jobs/<id>/defects` 🔒                 | log a defect (general, or on a circuit of this job)          |
 | POST      | `/jobs/<id>/defects/<did>/resolve` 🔒   | mark resolved (sets `resolved_at`)                           |
